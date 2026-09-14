@@ -469,7 +469,7 @@ jobs:
       - name: Pip install ${{ inputs.pip-install-target }}
         env:
           PIP_INSTALL_TARGET: ${{ inputs.pip-install-target }}
-        run: pip install --progress-bar off "$PIP_INSTALL_TARGET"
+        run: python -m pip install --force-reinstall --progress-bar off "$PIP_INSTALL_TARGET"
 
       - name: Install jaraco.text
         run: pip install --progress-bar off jaraco.text
@@ -513,9 +513,28 @@ jobs:
           PROJECT: ${{ inputs.project }}
         run: python move_entrypoints.py -p "$PROJECT"
 
+      - name: Log project build source
+        working-directory: ./pyinstaller
+        env:
+          PROJECT: ${{ inputs.project }}
+        run: |
+          python - <<'PY'
+          import os
+          from importlib import import_module
+          from importlib.metadata import distribution
+
+          project = os.environ["PROJECT"].lower()
+          package = "idaes-pse" if project == "idaes" else project
+          dist = distribution(package)
+          module = import_module(project)
+          print(f"{package} version: {dist.version}")
+          print(f"{package} module: {module.__file__}")
+          print(f"{package} source: {dist.read_text('direct_url.json') or 'not recorded'}")
+          PY
+
       - name: Build backend
         working-directory: ./pyinstaller
-        run: pyinstaller -y --clean --distpath ../electron/py_dist main.spec
+        run: python -m PyInstaller -y --clean --distpath ../electron/py_dist main.spec
 
       - name: Build frontend
         working-directory: ./electron/idaes-flowsheet-processor-ui/frontend
